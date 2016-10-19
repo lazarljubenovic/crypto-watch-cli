@@ -1,0 +1,29 @@
+{
+  "name": "cryptowatch",
+  "version": "0.1.0",
+  "description": "Watches over a directory and runs encryption over its content",
+  "main": "index.js",
+  "scripts": {
+    "start": "tsc -w",
+    "test": "jasmine"
+  },
+  "keywords": [
+    "cryptography"
+  ],
+  "author": "Lazar Ljubenović",
+  "license": "MIT",
+  "dependencies": {
+    "chokidar": "^1.6.1",
+    "fs-promise": "^0.5.0",
+    "mod-loop": "0.0.2",
+    "yargs": "^6.2.0"
+  },
+  "devDependencies": {
+    "@types/core-js": "^0.9.34",
+    "@types/jasmine": "^2.5.35",
+    "@types/node": "^6.0.45",
+    "@types/yargs": "0.0.33",
+    "jasmine": "^2.5.2",
+    "typescript": "^2.0.3"
+  }
+}
