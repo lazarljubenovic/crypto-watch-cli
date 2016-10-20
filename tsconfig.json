@@ -8,6 +8,7 @@
       "chokidar",
       "mkdirp",
       "lodash",
+      "glob",
       "jasmine"
     ]
   }

@@ -6,7 +6,8 @@
   "scripts": {
     "start": "tsc -w",
     "test": "jasmine",
-    "mock": "node generator.js magic"
+    "mock": "node generator.js magic",
+    "clean": "node clean.js"
   },
   "keywords": [
     "cryptography"
@@ -16,6 +17,8 @@
   "dependencies": {
     "chokidar": "^1.6.1",
     "fs-promise": "^0.5.0",
+    "glob": "^7.1.1",
+    "globby": "^6.0.0",
     "lodash": "^4.16.4",
     "mkdirp": "^0.5.1",
     "mod-loop": "0.0.2",
@@ -25,6 +28,7 @@
   "devDependencies": {
     "@types/chokidar": "^1.4.29",
     "@types/core-js": "^0.9.34",
+    "@types/glob": "^5.0.30",
     "@types/jasmine": "^2.5.35",
     "@types/lodash": "^4.14.37",
     "@types/mkdirp": "^0.3.29",
