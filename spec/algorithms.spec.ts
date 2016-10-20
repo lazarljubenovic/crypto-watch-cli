@@ -3,6 +3,36 @@ import shiftByN = require('../algorithms/shift-by-n');
 import simpleSubstitution = require('../algorithms/simple-substitution');
 import codebookCypher = require('../algorithms/codebook-cypher');
 
+import util = require('../util/util');
+
+describe(`Util`, () => {
+  describe(`Positive Mod`, () => {
+    it(`should work just like % for positive numbers`, () => {
+      expect(util.positiveMod(3, 2)).toBe(1);
+      expect(util.positiveMod(1234, 123)).toBe(1234 % 123);
+    });
+    it(`should give positive results for negative numbers`, () => {
+      expect(util.positiveMod(-3, 2)).toBe(1);
+      expect(util.positiveMod(-2, 5)).toBe(3);
+    });
+  });
+
+  describe(`Strip whitespace`, () => {
+    it(`should strip spaces`, () => {
+      expect(util.stripWhitespace('a b')).toBe('ab')
+    });
+    it(`should strip tabs`, () => {
+      expect(util.stripWhitespace('a\tb')).toBe('ab');
+    });
+    it(`should strip new lines`, () => {
+      expect(util.stripWhitespace('a\nb')).toBe('ab');
+    });
+    it(`should strip multiple whitespace characters`, () => {
+      expect(util.stripWhitespace('a b c\td\te\nf\ng')).toBe('abcdefg');
+    });
+  });
+});
+
 describe(`Algorithm`, () => {
   describe(`Shift By N`, () => {
     it(`should work for a single letter`, () => {
@@ -25,6 +55,9 @@ describe(`Algorithm`, () => {
     it(`should wrap only for some letters`, () => {
       expect(shiftByN('abyz', 1)).toBe('bcza');
       expect(shiftByN('abyz', -1)).toBe('zaxy');
+    });
+    it(`should strip all whitespace characters`, () => {
+      expect(shiftByN('a b\tc\nd', 1)).toBe('bcde');
     });
   });
 
