@@ -7,7 +7,9 @@ const abcLength = 26;
 function shiftByN(plaintext: string, offset: number = 3): string {
   return plaintext
     .split('')
-    .map(letter => String.fromCharCode(mod((letter.charCodeAt(0) - aCode + offset), abcLength) + aCode))
+    .map(letter =>
+      String.fromCharCode(
+        mod((letter.charCodeAt(0) - aCode + offset), abcLength) + aCode))
     .join('');
 }
 

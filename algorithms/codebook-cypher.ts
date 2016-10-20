@@ -1,4 +1,5 @@
-function codebookCypher(plaintext: string, codebook: Map<string, string>): string {
+function codebookCypher(plaintext: string,
+                        codebook: Map<string, string>): string {
   // TODO
   return plaintext;
 }

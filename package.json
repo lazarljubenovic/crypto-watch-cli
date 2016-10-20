@@ -15,12 +15,15 @@
   "dependencies": {
     "chokidar": "^1.6.1",
     "fs-promise": "^0.5.0",
+    "mkdirp": "^0.5.1",
     "mod-loop": "0.0.2",
     "yargs": "^6.2.0"
   },
   "devDependencies": {
+    "@types/chokidar": "^1.4.29",
     "@types/core-js": "^0.9.34",
     "@types/jasmine": "^2.5.35",
+    "@types/mkdirp": "^0.3.29",
     "@types/node": "^6.0.45",
     "@types/yargs": "0.0.33",
     "jasmine": "^2.5.2",

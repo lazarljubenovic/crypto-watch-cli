@@ -5,6 +5,8 @@
     "types": [
       "node",
       "yargs",
+      "chokidar",
+      "mkdirp",
       "jasmine"
     ]
   }
