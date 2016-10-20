@@ -5,7 +5,8 @@
   "main": "index.js",
   "scripts": {
     "start": "tsc -w",
-    "test": "jasmine"
+    "test": "jasmine",
+    "mock": "node generator.js magic"
   },
   "keywords": [
     "cryptography"
@@ -30,6 +31,7 @@
     "@types/node": "^6.0.45",
     "@types/yargs": "0.0.33",
     "jasmine": "^2.5.2",
+    "lorem-ipsum": "^1.0.3",
     "typescript": "^2.0.3"
   }
 }
