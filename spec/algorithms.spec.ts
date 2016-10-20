@@ -90,7 +90,7 @@ describe(`Algorithm`, () => {
     });
   });
 
-  xdescribe(`Codebook Cypher`, () => {
+  describe(`Codebook Cypher`, () => {
     const codebook = new Map([
       ['februar', '12a69e'],
       ['finansija', '247'],

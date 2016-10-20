@@ -1,7 +1,10 @@
 function codebookCypher(plaintext: string,
                         codebook: Map<string, string>): string {
-  // TODO
-  return plaintext;
+  return plaintext
+    .split(' ')
+    .map(word => word.trim().toLowerCase())
+    .map(word => codebook.get(word) ? codebook.get(word) : word)
+    .join (' ');
 }
 
 export = codebookCypher;
