@@ -31,5 +31,11 @@
   "codebook-cypher": [
     ["februar", "438hf"],
     ["finansija", "D3jd"]
-  ]
+  ],
+  "double-transposition": {
+    "col": 5,
+    "columnFirst": true,
+    "per1": [1, 3, 4, 0, 2],
+    "per2": [0, 2, 1]
+  }
 }

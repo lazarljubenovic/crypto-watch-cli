@@ -8,6 +8,8 @@ import path = require('path');
 // Algorithms
 import shiftByN = require('./algorithms/shift-by-n');
 import simpleSubstitution = require('./algorithms/simple-substitution');
+import codebookCypher = require('./algorithms/codebook-cypher');
+import doubleTransposition = require('./algorithms/double-transposition');
 
 // Constants
 const watchDir = 'magic';
@@ -45,6 +47,22 @@ switch(algo) {
   case 'simple-substitution':
     algoFunc = simpleSubstitution;
     options = new Map(options['simple-substitution']);
+    break;
+
+  case 'codebookCypher':
+  case 'dodebookCypher':
+  case 'codebook-cypher':
+  case 'codebook':
+    algoFunc = codebookCypher;
+    options = new Map(options['codebook-cypher']);
+    break;
+
+  case 'doubleTransposition':
+  case 'DoubleTransposition':
+  case 'double-transposition':
+  case 'double':
+    algoFunc = doubleTransposition;
+    options = options['double-transposition'];
     break;
 
   case undefined:

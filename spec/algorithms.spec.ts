@@ -2,6 +2,7 @@
 import shiftByN = require('../algorithms/shift-by-n');
 import simpleSubstitution = require('../algorithms/simple-substitution');
 import codebookCypher = require('../algorithms/codebook-cypher');
+import doubleTransposition = require('../algorithms/double-transposition');
 
 import util = require('../util/util');
 
@@ -29,6 +30,95 @@ describe(`Util`, () => {
     });
     it(`should strip multiple whitespace characters`, () => {
       expect(util.stripWhitespace('a b c\td\te\nf\ng')).toBe('abcdefg');
+    });
+  });
+
+  describe(`Permutate Rows`, () => {
+    it(`should work for 1×1 matrix`, () => {
+      expect(util.permutateRows([['a']], [0])).toEqual([['a']]);
+    });
+    it(`should work for 2×2 matrix`, () => {
+      // permutate first and second row
+      expect(util.permutateRows([['a', 'b'], ['c', 'd']], [1, 0]))
+        .toEqual([['c', 'd'], ['a', 'b']]);
+      // do not permutate anything
+      expect(util.permutateRows([['a', 'b'], ['c', 'd']], [0, 1]))
+        .toEqual([['a', 'b'], ['c', 'd']]);
+    });
+    it(`should work for 3×3 matrix`, () => {
+      expect(util.permutateRows([
+        ['a', 'b', 'c'],
+        ['d', 'e', 'f'],
+        ['g', 'h', 'i'],
+      ], [1, 2, 0])).toEqual([
+        ['d', 'e', 'f'],
+        ['g', 'h', 'i'],
+        ['a', 'b', 'c'],
+      ]);
+    });
+  });
+
+  describe('Permutate Columns', () => {
+    it(`should work for 1×1 matrix`, () => {
+      expect(util.permutateColumns([['a']], [0])).toEqual([['a']]);
+    });
+    it(`should work for 2×2 matrix`, () => {
+      // permutate first and second row
+      expect(util.permutateColumns([['a', 'b'], ['c', 'd']], [1, 0]))
+        .toEqual([['b', 'a'], ['d', 'c']]);
+      // do not permutate anything
+      expect(util.permutateColumns([['a', 'b'], ['c', 'd']], [0, 1]))
+        .toEqual([['a', 'b'], ['c', 'd']]);
+    });
+    it(`should work for 3×3 matrix`, () => {
+      expect(util.permutateColumns([
+        ['a', 'b', 'c'],
+        ['d', 'e', 'f'],
+        ['g', 'h', 'i'],
+      ], [1, 2, 0])).toEqual([
+        ['b', 'c', 'a'],
+        ['e', 'f', 'd'],
+        ['h', 'i', 'g'],
+      ]);
+    });
+  });
+
+  describe(`Right Pad`, () => {
+    it(`should add padding of a single character`, () => {
+      expect(util.rightPad('foo', 10, '.')).toBe('foo.......');
+    });
+    it(`should add padding of more characters (fits)`, () => {
+      expect(util.rightPad('foo', 7, '!?')).toBe('foo!?!?');
+    });
+    it(`should add padding of more characters (doesn't fit)`, () => {
+      expect(util.rightPad('foo', 8, '!?')).toBe('foo!?!?!');
+    });
+  });
+
+  describe(`String to Matrix`, () => {
+    it(`should work when divisible`, () => {
+      expect(util.stringToMatrix('abcd', 2))
+        .toEqual([['a', 'b'], ['c', 'd']]);
+      expect(util.stringToMatrix('abcd', 1))
+        .toEqual([['a'], ['b'], ['c'], ['d']]);
+      expect(util.stringToMatrix('abcd', 4))
+        .toEqual([['a', 'b', 'c', 'd']]);
+    });
+    it(`should work when not divisible`, () => {
+      expect(util.stringToMatrix('abcd', 3))
+        .toEqual([['a', 'b', 'c'], ['d', 'a', 'b']]);
+    });
+  });
+
+  describe(`Matrix to String`, () => {
+    it(`should work with one-row matrix`, () => {
+      expect(util.matrixToString([['a', 'b', 'c']])).toBe('abc');
+    });
+    it(`should work with one-column matrix`, () => {
+      expect(util.matrixToString([['a'], ['b'], ['c']])).toBe('abc');
+    });
+    it(`should work with 2×2 matrix`, () => {
+      expect(util.matrixToString([['a', 'b'], ['c', 'd']])).toBe('abcd');
     });
   });
 });
@@ -111,8 +201,31 @@ describe(`Algorithm`, () => {
     });
   });
 
-  xdescribe(`Double Transposition`, () => {
-    // TODO
+  describe(`Double Transposition`, () => {
+    it(`should work for one letter`, () => {
+      expect(doubleTransposition(
+        'a',
+        {col: 1, columnFirst: true, per1: [0], per2: [0]}
+      )).toBe('a');
+    });
+    it(`should work for attackatdawn example`, () => {
+      expect(doubleTransposition(
+        'attackatdawn',
+        {col: 4, columnFirst: true, per1: [1, 3, 0, 2], per2: [2, 0, 1]}
+      )).toBe('andwtaatktca');
+    });
+    it(`should work when the size is not perfect`, () => {
+      expect(doubleTransposition(
+        'abcd',
+        {col: 3, columnFirst: false, per1: [1, 0], per2: [2, 1, 0]}
+      )).toBe('badcba');
+    });
+    it(`should work a more complex example when size is not perfect`, () => {
+      expect(doubleTransposition(
+        'attackatdawn',
+        {col: 5, columnFirst: true, per1: [1, 3, 4, 0, 2], per2: [0, 2, 1]}
+      )).toBe('tacatnttwaadakt')
+    });
   });
 
   xdescribe(`Election 1896 Cypher`, () => {
