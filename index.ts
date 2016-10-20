@@ -23,7 +23,7 @@ let optionsPath: string = argv['options'];
 if (!optionsPath) {
   optionsPath = './magic/crypto.json';
 }
-let options = JSON.parse(fs.readFileSync(optionsPath), 'utf8');
+let options = JSON.parse(fs.readFileSync(optionsPath, 'utf8').toString());
 
 const algo: string = argv['algo'];
 let algoFunc: Function;
@@ -44,7 +44,7 @@ switch(algo) {
     options = new Map(options['simple-substitution']);
     break;
 
-  case true:
+  case undefined:
     console.log(`--algo not specified. Using shift-by-n by default`);
     algoFunc = shiftByN;
     options = options['shift-by-n'];
