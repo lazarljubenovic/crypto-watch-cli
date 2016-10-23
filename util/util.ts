@@ -40,6 +40,40 @@ function matrixToString(matrix: string[][]): string {
   return matrix.map(row => row.join('')).join('');
 }
 
+function permutate(arr: any[], permutation: number[]): any[] {
+  const identityPermutation: number[] =
+    Array(permutation.length).fill(null).map((_, i) => i);
+  const isValid: boolean = permutation.concat().sort()
+    .every((el, i) => el === identityPermutation[i]);
+  const isTooLarge: boolean = permutation.length > arr.length;
+  if (!isValid) {
+    throw new Error(`Invalid permutation {${permutation.join(',')}}.`);
+  }
+  if (isTooLarge) {
+    throw new Error(`Permutation {${permutation.join(',')}}` +
+      `for array of length ${arr.length}.`);
+  }
+  return arr.map((_, i) => arr[permutation[i]]);
+}
+
+function splitCarefully(text: string,
+                        prefixes?: Set<string>): string[] {
+  if (prefixes == null) {
+    return text.split(' ');
+  }
+  const regexp = `((?:${[...prefixes].join('|')})\\s\\w+,?\\.?;?\\??\\!?)|\\s`;
+  return text.split(new RegExp(regexp, `gi`)).filter(el => !!el);
+}
+
+function addRightPadding(arr: any[], multiplier: number): any[] {
+  if (arr.length % multiplier == 0) {
+    return arr;
+  } else {
+    const missingCount = multiplier - arr.length % multiplier;
+    return arr.concat(arr.slice(0, missingCount));
+  }
+}
+
 export = {
   positiveMod,
   stripWhitespace,
@@ -48,4 +82,7 @@ export = {
   rightPad,
   stringToMatrix,
   matrixToString,
+  permutate,
+  splitCarefully,
+  addRightPadding,
 };

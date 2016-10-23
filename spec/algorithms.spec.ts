@@ -3,6 +3,7 @@ import shiftByN = require('../algorithms/shift-by-n');
 import simpleSubstitution = require('../algorithms/simple-substitution');
 import codebookCypher = require('../algorithms/codebook-cypher');
 import doubleTransposition = require('../algorithms/double-transposition');
+import electionCipher = require('../algorithms/election-cipher');
 
 import util = require('../util/util');
 
@@ -121,6 +122,85 @@ describe(`Util`, () => {
       expect(util.matrixToString([['a', 'b'], ['c', 'd']])).toBe('abcd');
     });
   });
+
+  describe(`Permutate`, () => {
+    it(`should work on a single-element array`, () => {
+      expect(util.permutate(['foo'], [0])).toEqual(['foo']);
+    })
+    it(`should work on small array`, () => {
+      expect(util.permutate(['foo', 'bar', 'baz'], [1, 0, 2]))
+        .toEqual(['bar', 'foo', 'baz'])
+    });
+    it(`should work on larger array`, () => {
+      expect(util.permutate(
+        ['foo', 'bar', 'baz', 'FOO', 'BAR', 'BAZ'],
+        [1, 3, 5, 0, 2, 4]
+      )).toEqual(['bar', 'FOO', 'BAZ', 'foo', 'baz', 'BAR'])
+    });
+    it(`should throw if invalid permutation`, () => {
+      expect(() => util.permutate(['foo', 'bar'], [0, 2])).toThrow();
+      expect(() => util.permutate(['foo', 'bar'], [-1, 0])).toThrow();
+      expect(() => util.permutate(['foo'], [0, 1])).toThrow();
+      expect(() => util.permutate(['foo', 'bar'], [0, 1])).not.toThrow();
+    });
+  });
+
+  describe(`Split Carefully`, () => {
+    it(`should split on spaces`, () => {
+      expect(util.splitCarefully('a b c'))
+        .toEqual(['a', 'b', 'c']);
+    });
+    it(`should split carefully given a single prefix`, () => {
+      expect(util.splitCarefully('a los b los c los d', new Set(['los'])))
+        .toEqual(['a', 'los b', 'los c', 'los d']);
+      expect(util.splitCarefully('a b c los b los c los d', new Set(['los'])))
+        .toEqual(['a', 'b', 'c', 'los b', 'los c', 'los d']);
+    });
+    it(`should split carefully with multiple prefixes`, () => {
+      expect(
+        util.splitCarefully('a los b san c st d',
+        new Set(['los', 'san', 'st']))
+      )
+        .toEqual(['a', 'los b', 'san c', 'st d']);
+    });
+    it(`should split carefully when string starts with prefix`, () => {
+      expect(util.splitCarefully('los a b c', new Set(['los'])))
+        .toEqual(['los a', 'b', 'c']);
+    });
+    it(`should split carefully when string ends with prefix`, () => {
+      expect(util.splitCarefully('los a los', new Set(['los'])))
+        .toEqual(['los a', 'los']);
+    });
+    it(`should split carefully when string is just a prefix`, () => {
+      expect(util.splitCarefully('los', new Set(['los'])))
+        .toEqual(['los']);
+    });
+    it(`should split carefully around commas, etc`, () => {
+      expect(util.splitCarefully(
+        'los A, los B c, los, los! Los a; los B?',
+        new Set(['los'])))
+          .toEqual(
+            ['los A,', 'los B', 'c,', 'los,', 'los!', 'Los a;', 'los B?']
+          );
+    });
+  });
+
+  describe(`Add Right Padding`, () => {
+    it(`should do nothing if already fits`, () => {
+      expect(util.addRightPadding(['a', 'b', 'c'], 3))
+        .toEqual(['a', 'b', 'c']);
+      expect(util.addRightPadding(['a', 'b', 'c', 'd'], 2))
+        .toEqual(['a', 'b', 'c', 'd']);
+    });
+    it(`should padding when missing`, () => {
+      expect(util.addRightPadding(['a', 'b', 'c', 'd'], 3))
+        .toEqual(['a', 'b', 'c', 'd', 'a', 'b']);
+      expect(util.addRightPadding(['a', 'b', 'c', 'd', 'e'], 2))
+        .toEqual(['a', 'b', 'c', 'd', 'e', 'a']);
+      expect(util.addRightPadding(['a', 'b'], 3))
+        .toEqual(['a', 'b', 'a']);
+    });
+  });
 });
 
 describe(`Algorithm`, () => {
@@ -228,8 +308,88 @@ describe(`Algorithm`, () => {
     });
   });
 
-  xdescribe(`Election 1896 Cypher`, () => {
-    // TODO
+  describe(`Election 1876 Cypher`, () => {
+    describe(`Encryption`, () => {
+      it(`should work without prefixes with correct multipliers`, () => {
+        expect(electionCipher.encrypt('hello world', [0, 1]))
+          .toBe('hello world');
+        expect(electionCipher.encrypt('hello world', [1, 0]))
+          .toBe('world hello');
+        expect(electionCipher.encrypt(
+          'hello world please attack at dawn',
+          [1, 0]
+        ))
+          .toBe('world hello attack please dawn at');
+      });
+      it(`should work without prefixes with padding`, () => {
+        expect(electionCipher.encrypt('attack at dawn', [1, 0]))
+          .toBe('at attack attack dawn');
+        expect(electionCipher.encrypt('a b c d e f g h i', [3, 2, 1, 0]))
+          .toBe('d c b a h g f e c b a i');
+      });
+      it(`should work with a prefix with correct multipliers`, () => {
+        expect(electionCipher.encrypt(
+          `Hey, welcome to San Francisco!`,
+          [1, 0],
+          new Set(['san'])
+        ))
+          .toBe(`welcome Hey, San Francisco! to`);
+      });
+      it(`should work with multiple prefixes`, () => {
+        expect(electionCipher.encrypt(`a B c D`, [1, 0], new Set(['a', 'c'])))
+          .toBe(`c D a B`);
+      });
+      it(`should work with multiple prefixes and added padding`, () => {
+        expect(electionCipher.encrypt(
+          `San Francisco will burn!`,
+          [1, 0],
+          new Set(['san'])
+        )).toBe(`will San Francisco San Francisco burn!`);
+      });
+    });
+
+    describe(`Inverse Key`, () => {
+      it(`should work`, () => {
+        expect(electionCipher.inverseKey([0, 1, 2])).toEqual([0, 1, 2]);
+        expect(electionCipher.inverseKey([4, 0, 1, 3, 2]))
+          .toEqual([1, 2, 4, 3, 0]);
+      });
+    });
+
+    describe(`Decryption`, () => {
+      it(`should work without prefixes or padding`, () => {
+        const plaintext = 'hello world';
+        const permutation = [1, 0];
+        const ciphertext = electionCipher.encrypt(plaintext, permutation);
+        expect(electionCipher.decrypt(ciphertext, permutation))
+          .toBe(plaintext);
+      });
+      it(`should work without prefixes but with padding`, () => {
+        const plaintext = 'hello world holla';
+        const permutation = [1, 0];
+        const ciphertext = electionCipher.encrypt(plaintext, permutation);
+        expect(electionCipher.decrypt(ciphertext, permutation))
+          .toBe(plaintext + ' hello');
+      });
+      it(`should work with prefixes but no padding`, () => {
+        const plaintext = 'hello world attack at dawn';
+        const permutation = [1, 0];
+        const prefixes = new Set(['at']);
+        const ciphertext =
+          electionCipher.encrypt(plaintext, permutation, prefixes);
+        expect(electionCipher.decrypt(ciphertext, permutation, prefixes))
+          .toBe(plaintext);
+      });
+      it(`should work with prefixes and padding`, () => {
+        const plaintext = 'hello world please attack at dawn';
+        const permutation = [1, 0];
+        const prefixes = new Set(['at']);
+        const ciphertext =
+          electionCipher.encrypt(plaintext, permutation, prefixes);
+        expect(electionCipher.decrypt(ciphertext, permutation, prefixes))
+          .toBe(plaintext + ' hello');
+      });
+    });
   });
 
   xdescribe(`One-Time-Pad`, () => {
