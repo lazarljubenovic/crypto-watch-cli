@@ -19,10 +19,20 @@ interface Options {
   input: string;
   output: string;
   optionsPath: string;
-  encryptFunc: Function;
-  decryptFunc: Function;
-  permutation: number[];
+  func: Function;
+  permutationFromGui: number[];
+  permutation: number[],
+  isOptionsFromFile: boolean;
   prefixes: string[];
+}
+
+interface GuiSettings {
+  watch: boolean;
+  sourcePath: string;
+  destinationPath: string;
+  isEncryption: boolean;
+  isOptionsFromFile: boolean;
+  permutationFromGui: number[];
 }
 
 // Defaults (program-wise)
@@ -30,8 +40,9 @@ const defaults = {
   input: 'input',
   output: 'output',
   optionsPath: 'crypto.json',
-  encryptFunc: electionCipher.encrypt,
-  decryptFunc: electionCipher.decrypt,
+  func: electionCipher.encrypt,
+  permutationFromGui: [1, 0],
+  isOptionsFromFile: true,
 }
 
 // Algorithm defaults
@@ -61,12 +72,14 @@ function encrypt(filename: string): void {
   fs.readFile(filename, (err, data) => {
     if (err) throw err;
     const plaintext = data.toString().trim();
-    const cyphertext = options.encryptFunc(
+    const cyphertext = options.func(
       plaintext,
-      options.permutation,
+      options.isOptionsFromFile
+        ? options.permutation
+        : options.permutationFromGui,
       new Set(options.prefixes)
     );
-    const outputPath = filename.replace(new RegExp(`^{options.input}`), options.output);
+    const outputPath = getCorrespondingOutputFilePath(filename);
     mkdirp(path.dirname(options.output), err => {
       if (err) throw err;
       fs.writeFile(outputPath, cyphertext, err => {
@@ -79,12 +92,18 @@ function encrypt(filename: string): void {
   });
 }
 
-function getOutputPath(inputPath: string): string {
-  return inputPath.replace(defaults.input, defaults.output);
+function getCorrespondingOutputFilePath(inputFilePath: string): string {
+  const regexp = new RegExp(`^${options.input}`);
+  const outputPath = inputFilePath.replace(regexp, options.output);
+  return outputPath;
 }
 
-const eventHandler = (path) => {
-  encrypt(path.toString());
+function deleteEncrypted(pathToFile: string): string {
+  const pathToOutputFile = getCorrespondingOutputFilePath(pathToFile);
+  fs.unlink(pathToOutputFile, err => {
+    if (err) throw err;
+    console.log(`${pathToFile} deleted => ${pathToOutputFile} deleted`);
+  })
 }
 
 let watcher: any;
@@ -95,9 +114,9 @@ function startWatching(): void {
   });
   watcher
     .on('all', (event, path) => console.log(`${event}\t${path}`))
-    .on('add', eventHandler)
-    .on('change', eventHandler)
-    // TODO unlink
+    .on('add', pathToFile => encrypt(pathToFile))
+    .on('change', pathToFile => encrypt(pathToFile))
+    .on('unlink', pathToFile => deleteEncrypted(pathToFile));
 }
 
 function stopWatching(): void {
@@ -123,27 +142,34 @@ function fsExists(path: string,
 }
 
 const wss = new WebSocket.Server({ port: 4201 });
-const connectionMessageSubject = new Rx.Subject();
+let ws: WebSocket;
+const connectionMessageSubject: Rx.Subject<GuiSettings> = new Rx.Subject();
+const convertSubject: Rx.Subject<boolean> = new Rx.Subject();
 
-wss.on('connection', ws => {
-  console.log(`connection on`);
-
-  ws.on('message', message => {
-    //console.log(`Primljena poruka: ${message}`);
+wss.on('connection', _ws => {
+  ws = _ws; // set global variable to use for closures
+  _ws.on('message', message => {
+    console.log(`Primljena poruka: ${message}`);
     try {
       message = JSON.parse(message)
     } catch (e) {
       console.error(`Could not parse ${message} as JSON.`)
       throw e;
     }
-    connectionMessageSubject.next(message);
+    if (typeof message == 'string' && message.toLowerCase() == "convert") {
+      convertSubject.next(true);
+    } else {
+      connectionMessageSubject.next(message)
+    }
   });
-
-  ws.send(JSON.stringify('server zove klijenta'));
 });
 
-const optionWatchFiles$ = connectionMessageSubject
-  .map(options => options['watch'])
+convertSubject.subscribe(() => {
+  // TODO convert all
+});
+
+connectionMessageSubject
+  .map((guiSettings: GuiSettings) => guiSettings.watch)
   .distinctUntilChanged()
   .subscribe(watch => {
     if (watch) {
@@ -153,4 +179,66 @@ const optionWatchFiles$ = connectionMessageSubject
       console.log(`Stop watching...`);
       stopWatching();
     }
+  });
+
+connectionMessageSubject
+  .map((guiSettings: GuiSettings) => guiSettings.sourcePath)
+  .distinctUntilChanged()
+  .subscribe(sourcePath => {
+    fsExists(
+      sourcePath,
+      () => {
+        console.log(`Setting source path to ${sourcePath}`);
+        options.input = sourcePath;
+      },
+      err => console.log(err) // TODO send to GUI
+    );
+  });
+
+connectionMessageSubject
+  .map((guiSettings: GuiSettings) => guiSettings.destinationPath)
+  .distinctUntilChanged()
+  .subscribe(destinationPath => {
+    fsExists(
+      destinationPath,
+      () => {
+        console.log(`Setting destination path to ${destinationPath}`);
+        options.output = destinationPath;
+      },
+      err => {
+        console.log(err);
+        console.log(`Folder will be created`);
+        options.output = destinationPath; // TODO inform gui
+      }
+    );
+  });
+
+connectionMessageSubject
+  .map((guiSettings: GuiSettings) => guiSettings.isEncryption)
+  .distinctUntilChanged()
+  .subscribe(isEncryption => {
+    console.log(`Setting ${isEncryption ? 'encryption' : 'decryption'}...`);
+    if (isEncryption) {
+      options.func = electionCipher.encrypt;
+    } else {
+      options.func = electionCipher.decrypt;
+    }
+  });
+
+connectionMessageSubject
+  .map((guiSettings: GuiSettings) => guiSettings.isOptionsFromFile)
+  .distinctUntilChanged()
+  .subscribe(isOptionsFromFile => {
+    console.log(`Options from file: ${isOptionsFromFile ? 'ON' : 'OFF'}.`);
+    options.isOptionsFromFile = isOptionsFromFile;
+  });
+
+connectionMessageSubject
+  .map((guiSettings: GuiSettings) => guiSettings.permutationFromGui)
+  .distinctUntilChanged((prev, curr) => {
+    prev.every((el, i) => el === curr[i])
+  })
+  .subscribe(permutationFromGui => {
+    console.log(`Setting GUI permutation to ${permutationFromGui.join('-')}`);
+    options.permutationFromGui = permutationFromGui;
   });
