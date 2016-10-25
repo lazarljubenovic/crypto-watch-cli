@@ -40,11 +40,16 @@ function matrixToString(matrix: string[][]): string {
   return matrix.map(row => row.join('')).join('');
 }
 
-function permutate(arr: any[], permutation: number[]): any[] {
+function isValidPermutation(permutation: number[]): boolean {
   const identityPermutation: number[] =
     Array(permutation.length).fill(null).map((_, i) => i);
   const isValid: boolean = permutation.concat().sort()
     .every((el, i) => el === identityPermutation[i]);
+  return isValid;
+}
+
+function permutate(arr: any[], permutation: number[]): any[] {
+  const isValid: boolean = isValidPermutation(permutation);
   const isTooLarge: boolean = permutation.length > arr.length;
   if (!isValid) {
     throw new Error(`Invalid permutation {${permutation.join(',')}}.`);
@@ -82,6 +87,7 @@ export = {
   rightPad,
   stringToMatrix,
   matrixToString,
+  isValidPermutation,
   permutate,
   splitCarefully,
   addRightPadding,
