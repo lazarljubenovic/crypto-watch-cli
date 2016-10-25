@@ -4,3 +4,4 @@ magic-output/
 npm-debug.log
 input/
 output/
+crypto-log.json

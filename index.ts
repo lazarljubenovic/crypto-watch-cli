@@ -6,9 +6,10 @@ import mkdirp = require('mkdirp');
 import path = require('path');
 import WebSocket = require('ws');
 import Rx = require('rxjs/Rx');
+import util = require('util');
+import recursive = require('recursive-readdir');
 
 // Algorithms
-import util = require('./util/util');
 import shiftByN = require('./algorithms/shift-by-n');
 import simpleSubstitution = require('./algorithms/simple-substitution');
 import codebookCypher = require('./algorithms/codebook-cypher');
@@ -51,6 +52,7 @@ const electionDefaults = {
   prefixes: ['san', 'los', 'las', 'de', 'saint', 'st'],
 };
 
+// region Read crypto.json file to set global options
 console.log(`Checking for crypto.json file...`);
 let options: Options;
 try {
@@ -62,33 +64,104 @@ try {
   options = Object.assign({}, options, defaults);
 } catch (e) {
   console.error(`File ${defaults.optionsPath} not found, using defaults.`);
+  console.error(e);
   options = Object.assign({}, defaults, electionDefaults);
 }
 
 console.log(`Settings loaded.`);
 console.log(options);
+// endregion
+
+// region Read crypto-log.json filename
+console.log(`Checking for crypto-log.json file...`);
+let state = [];
+try {
+  state = JSON.parse(fs.readFileSync('crypto-log.json', { encoding: 'utf8' }));
+  console.log(`crypto-log.json file found`);
+} catch (e) {
+  state = [];
+  console.log(`crypto-log.json file not found; creating one...`);
+  fs.writeFileSync('crypto-log.json', JSON.stringify(state));
+  console.log(`crypto-log.json created.`);
+}
+
+function addEntryToStateAndSave(filename: string): void {
+  state = state.concat({
+    filename,
+    timestamp: new Date().getTime()
+  });
+}
+
+function isNewOrEdited(filename: string,
+                       ifYes: Function,
+                       ifNo: Function): void {
+  fs.lstat(filename, (err, stats) => {
+    if (err || !stats.isFile()) {
+      ifNo(err || `${path} is not a file.`);
+    } else {
+      console.log(util.inspect(stats));
+    }
+  });
+}
+// endregion
+
+function _encryptAll(filter: (filename: string) => boolean,
+                     callback?: () => any) {
+  recursive(options.input, (err, files) => {
+    files = files.filter(filename => filename.endsWith('.txt'));
+    files = files.filter(filter);
+    console.log(files);
+    callback && callback();
+  });
+}
 
 function encrypt(filename: string): void {
-  fs.readFile(filename, (err, data) => {
+  fs.lstat(filename, (err, stats) => {
     if (err) throw err;
-    const plaintext = data.toString().trim();
-    const cyphertext = options.func(
-      plaintext,
-      options.isOptionsFromFile
-        ? options.permutation
-        : options.permutationFromGui,
-      new Set(options.prefixes)
-    );
-    const outputPath = getCorrespondingOutputFilePath(filename);
-    mkdirp(path.dirname(options.output), err => {
-      if (err) throw err;
-      fs.writeFile(outputPath, cyphertext, err => {
+    const mtime = stats.mtime;
+    // If the file is not in the log, or if it is but it has been modified
+    // since it was encrypted => encrypt it. Otherwise, do not.
+    const stateEntry = state.find(entry => entry.path === filename);
+    if (!(stateEntry && stateEntry.date > new Date(mtime).getTime())) {
+      // File should be encrypted
+      fs.readFile(filename, (err, data) => {
         if (err) throw err;
-        console.log(`Encryption successful!`);
-        console.log(`\t${filename} => ${outputPath}`);
-        console.log(`\t${plaintext} => ${cyphertext}`);
+        const plaintext = data.toString().trim();
+        const cyphertext = options.func(
+          plaintext,
+          options.isOptionsFromFile
+          ? options.permutation
+          : options.permutationFromGui,
+          new Set(options.prefixes)
+        );
+        const outputPath = getCorrespondingOutputFilePath(filename);
+        mkdirp(path.dirname(outputPath), err => {
+          if (err) throw err;
+          fs.writeFile(outputPath, cyphertext, err => {
+            if (err) throw err;
+            console.log(`Encryption successful!`);
+            console.log(`\t${filename} => ${outputPath}`);
+            console.log(`\t${plaintext} => ${cyphertext}`);
+            if (!stateEntry) {
+              state = state.concat({
+                path: filename,
+                date: new Date().getTime(),
+              });
+            } else {
+              stateEntry.date = new Date().getTime();
+            }
+            fs.writeFile('crypto-log.json', JSON.stringify(state), err => {
+              if (err) throw err
+            });
+          });
+        });
       });
-    });
+    } else {
+      // File should not be encrypted
+      const reason = `Already processed this file ` +
+        `${(new Date().getTime() - stateEntry.date) / 1000} seconds ago`;
+      console.log(`Skipping file ${filename}. Reason: ${reason}.`);
+    }
   });
 }
 
@@ -98,7 +171,7 @@ function getCorrespondingOutputFilePath(inputFilePath: string): string {
   return outputPath;
 }
 
-function deleteEncrypted(pathToFile: string): string {
+function deleteEncrypted(pathToFile: string): void {
   const pathToOutputFile = getCorrespondingOutputFilePath(pathToFile);
   fs.unlink(pathToOutputFile, err => {
     if (err) throw err;
@@ -238,7 +311,7 @@ connectionMessageSubject
 connectionMessageSubject
   .map((guiSettings: GuiSettings) => guiSettings.permutationFromGui)
   .distinctUntilChanged((prev, curr) => {
-    prev.every((el, i) => el === curr[i])
+    return prev.some((el, i) => el !== curr[i])
   })
   .subscribe(permutationFromGui => {
     console.log(`Setting GUI permutation to ${permutationFromGui.join('-')}`);
