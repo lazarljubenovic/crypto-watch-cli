@@ -2,3 +2,5 @@
 node_modules/
 magic-output/
 npm-debug.log
+input/
+output/
