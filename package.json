@@ -23,6 +23,8 @@
     "mkdirp": "^0.5.1",
     "mod-loop": "0.0.2",
     "right-pad": "^1.0.1",
+    "rxjs": "^5.0.0-rc.1",
+    "ws": "^1.1.1",
     "yargs": "^6.2.0"
   },
   "devDependencies": {
@@ -33,6 +35,7 @@
     "@types/lodash": "^4.14.37",
     "@types/mkdirp": "^0.3.29",
     "@types/node": "^6.0.45",
+    "@types/ws": "^0.0.34",
     "@types/yargs": "0.0.33",
     "jasmine": "^2.5.2",
     "lorem-ipsum": "^1.0.3",

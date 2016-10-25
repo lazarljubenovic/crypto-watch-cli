@@ -1,4 +1,15 @@
 {
+  "election-1876-cipher": {
+    "permutation": [1, 0, 2],
+    "prefixes": [
+      "san",
+      "los",
+      "las",
+      "de",
+      "saint",
+      "st"
+    ]
+  },
   "shift-by-n": 10,
   "simple-substitution": [
     ["a", "q"],
