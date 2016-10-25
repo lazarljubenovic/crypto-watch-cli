@@ -109,7 +109,7 @@ function deleteEncrypted(pathToFile: string): string {
 let watcher: any;
 
 function startWatching(): void {
-  watcher = chokidar.watch(options.input, {
+  watcher = chokidar.watch(`${options.input}/**/*.txt`, {
     ignored: `**/crypto.json`
   });
   watcher
@@ -191,7 +191,9 @@ connectionMessageSubject
         console.log(`Setting source path to ${sourcePath}`);
         options.input = sourcePath;
       },
-      err => console.log(err) // TODO send to GUI
+      err => {
+        console.log(err); // TODO send to GUI
+      }
     );
   });
 
