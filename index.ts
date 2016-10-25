@@ -105,16 +105,6 @@ function isNewOrEdited(filename: string,
 }
 // endregion
 
-function _encryptAll(filter: (filename: string) => boolean,
-                     callback?: () => any) {
-  recursive(options.input, (err, files) => {
-    files = files.filter(filename => filename.endsWith('.txt'));
-    files = files.filter(filter);
-    console.log(files);
-    callback && callback();
-  });
-}
-
 function encrypt(filename: string): void {
   fs.lstat(filename, (err, stats) => {
     if (err) throw err;
@@ -281,9 +271,8 @@ connectionMessageSubject
         options.output = destinationPath;
       },
       err => {
-        console.log(err);
         console.log(`Folder will be created`);
-        options.output = destinationPath; // TODO inform gui
+        options.output = destinationPath;
       }
     );
   });
@@ -311,7 +300,7 @@ connectionMessageSubject
 connectionMessageSubject
   .map((guiSettings: GuiSettings) => guiSettings.permutationFromGui)
   .distinctUntilChanged((prev, curr) => {
-    return prev.some((el, i) => el !== curr[i])
+    return prev.every((el, i) => el === curr[i])
   })
   .subscribe(permutationFromGui => {
     console.log(`Setting GUI permutation to ${permutationFromGui.join('-')}`);
