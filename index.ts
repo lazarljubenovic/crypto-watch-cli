@@ -116,12 +116,16 @@ function encrypt(filename: string): void {
       // File should be encrypted
       fs.readFile(filename, (err, data) => {
         if (err) throw err;
-        const plaintext = data.toString().trim();
+        const plaintext: string = data.toString().trim();
+        let permutation: number[] = options.isOptionsFromFile
+          ? options.permutation
+          : options.permutationFromGui;
+        if (options.func == electionCipher.decrypt) {
+          permutation = electionCipher.inverseKey(permutation);
+        }
         const cyphertext = options.func(
           plaintext,
-          options.isOptionsFromFile
-          ? options.permutation
-          : options.permutationFromGui,
+          permutation,
           new Set(options.prefixes)
         );
         const outputPath = getCorrespondingOutputFilePath(filename);
@@ -158,7 +162,7 @@ function encrypt(filename: string): void {
 function getCorrespondingOutputFilePath(inputFilePath: string): string {
   const regexp = new RegExp(`^${options.input}`);
   const outputPath = inputFilePath.replace(regexp, options.output);
-  return outputPath;
+  return outputPath.replace(/.txt$/, `.txt.lock`);
 }
 
 function deleteEncrypted(pathToFile: string): void {
@@ -247,11 +251,13 @@ connectionMessageSubject
 connectionMessageSubject
   .map((guiSettings: GuiSettings) => guiSettings.sourcePath)
   .distinctUntilChanged()
+  .filter(sourcePath => sourcePath !== options.input)
   .subscribe(sourcePath => {
     fsExists(
       sourcePath,
       () => {
         console.log(`Setting source path to ${sourcePath}`);
+        reset();
         options.input = sourcePath;
       },
       err => {
@@ -263,15 +269,18 @@ connectionMessageSubject
 connectionMessageSubject
   .map((guiSettings: GuiSettings) => guiSettings.destinationPath)
   .distinctUntilChanged()
+  .filter(destinationPath => destinationPath !== options.output)
   .subscribe(destinationPath => {
     fsExists(
       destinationPath,
       () => {
         console.log(`Setting destination path to ${destinationPath}`);
+        reset();
         options.output = destinationPath;
       },
       err => {
         console.log(`Folder will be created`);
+        reset();
         options.output = destinationPath;
       }
     );
@@ -280,8 +289,16 @@ connectionMessageSubject
 connectionMessageSubject
   .map((guiSettings: GuiSettings) => guiSettings.isEncryption)
   .distinctUntilChanged()
+  .filter(isEncryption => {
+    if (!isEncryption) {
+      return options.func == electionCipher.encrypt;
+    } else {
+      return options.func == electionCipher.decrypt;
+    }
+  })
   .subscribe(isEncryption => {
     console.log(`Setting ${isEncryption ? 'encryption' : 'decryption'}...`);
+    reset();
     if (isEncryption) {
       options.func = electionCipher.encrypt;
     } else {
@@ -292,17 +309,32 @@ connectionMessageSubject
 connectionMessageSubject
   .map((guiSettings: GuiSettings) => guiSettings.isOptionsFromFile)
   .distinctUntilChanged()
+  .filter(isOptionsFromFile => isOptionsFromFile !== options.isOptionsFromFile)
   .subscribe(isOptionsFromFile => {
     console.log(`Options from file: ${isOptionsFromFile ? 'ON' : 'OFF'}.`);
+    reset();
     options.isOptionsFromFile = isOptionsFromFile;
   });
 
 connectionMessageSubject
   .map((guiSettings: GuiSettings) => guiSettings.permutationFromGui)
   .distinctUntilChanged((prev, curr) => {
-    return prev.every((el, i) => el === curr[i])
+    return curr.length == prev.length && curr.every((el, i) => el === prev[i]);
+  })
+  .filter(permutationFromGui => {
+    return !options.isOptionsFromFile;
   })
   .subscribe(permutationFromGui => {
     console.log(`Setting GUI permutation to ${permutationFromGui.join('-')}`);
+    reset();
     options.permutationFromGui = permutationFromGui;
   });
+
+function reset() {
+  console.log(`This change requires to clean state!`);
+  console.log(`Cleaning state...`)
+  state = [];
+  fs.writeFileSync('crypto-log.json', JSON.stringify(state));
+  stopWatching();
+  startWatching();
+}
