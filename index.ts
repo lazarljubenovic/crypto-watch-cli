@@ -15,16 +15,21 @@ import simpleSubstitution = require('./algorithms/simple-substitution');
 import codebookCypher = require('./algorithms/codebook-cypher');
 import doubleTransposition = require('./algorithms/double-transposition');
 import electionCipher = require('./algorithms/election-cipher');
+import rc4 = require('./algorithms/rc4');
 
 interface Options {
+  watch: boolean;
   input: string;
   output: string;
   optionsPath: string;
   func: Function;
+  isDecryption: boolean;
   permutationFromGui: number[];
-  permutation: number[],
   isOptionsFromFile: boolean;
-  prefixes: string[];
+  // permutation: number[];
+  // prefixes: string[];
+  key: string;
+  numberOfBits: number;
 }
 
 interface GuiSettings {
@@ -38,19 +43,26 @@ interface GuiSettings {
 
 // Defaults (program-wise)
 const defaults = {
+  watch: false,
   input: 'input',
   output: 'output',
   optionsPath: 'crypto.json',
-  func: electionCipher.encrypt,
+  func: rc4.encrypt,
+  isDecryption: false,
   permutationFromGui: [1, 0],
   isOptionsFromFile: true,
 }
 
 // Algorithm defaults
-const electionDefaults = {
-  permutation: [1, 0],
-  prefixes: ['san', 'los', 'las', 'de', 'saint', 'st'],
-};
+// const electionDefaults = {
+//   permutation: [1, 0],
+//   prefixes: ['san', 'los', 'las', 'de', 'saint', 'st'],
+// };
+
+const rc4Defaults = {
+  key: '00010110',
+  numberOfBits: 4,
+}
 
 // region Read crypto.json file to set global options
 console.log(`Checking for crypto.json file...`);
@@ -59,13 +71,13 @@ try {
   options =
     JSON.parse(fs.readFileSync(defaults.optionsPath, {
       encoding: 'utf8'}
-    ))['election-1876-cipher'];
+    ))['rc4'];
   console.log(`crypto.json file found, using its settings.`);
   options = Object.assign({}, options, defaults);
 } catch (e) {
   console.error(`File ${defaults.optionsPath} not found, using defaults.`);
   console.error(e);
-  options = Object.assign({}, defaults, electionDefaults);
+  options = Object.assign({}, defaults, rc4Defaults);
 }
 
 console.log(`Settings loaded.`);
@@ -114,21 +126,15 @@ function encrypt(filename: string): void {
     const stateEntry = state.find(entry => entry.path === filename);
     if (!(stateEntry && stateEntry.date > new Date(mtime).getTime())) {
       // File should be encrypted
-      fs.readFile(filename, (err, data) => {
+      fs.readFile(filename, (err, plaintext: Buffer) => {
         if (err) throw err;
-        const plaintext: string = data.toString().trim();
-        let permutation: number[] = options.isOptionsFromFile
-          ? options.permutation
-          : options.permutationFromGui;
-        if (options.func == electionCipher.decrypt) {
-          permutation = electionCipher.inverseKey(permutation);
-        }
-        const cyphertext = options.func(
-          plaintext,
-          permutation,
-          new Set(options.prefixes)
-        );
         const outputPath = getCorrespondingOutputFilePath(filename);
+        const cyphertext: Buffer =
+          rc4.getBuffer(rc4.encrypt(
+            plaintext,
+            options.numberOfBits,
+            options.key
+          ));
         mkdirp(path.dirname(outputPath), err => {
           if (err) throw err;
           fs.writeFile(outputPath, cyphertext, err => {
@@ -145,7 +151,7 @@ function encrypt(filename: string): void {
               stateEntry.date = new Date().getTime();
             }
             fs.writeFile('crypto-log.json', JSON.stringify(state), err => {
-              if (err) throw err
+              if (err) throw err;
             });
           });
         });
@@ -162,7 +168,11 @@ function encrypt(filename: string): void {
 function getCorrespondingOutputFilePath(inputFilePath: string): string {
   const regexp = new RegExp(`^${options.input}`);
   const outputPath = inputFilePath.replace(regexp, options.output);
-  return outputPath.replace(/.txt$/, `.txt.lock`);
+  if (!options.isDecryption) {
+    return outputPath.concat('.lock');
+  } else {
+    return outputPath.slice(0, -'.lock'.length);
+  }
 }
 
 function deleteEncrypted(pathToFile: string): void {
@@ -176,8 +186,9 @@ function deleteEncrypted(pathToFile: string): void {
 let watcher: any;
 
 function startWatching(): void {
-  watcher = chokidar.watch(`${options.input}/**/*.txt`, {
-    ignored: `**/crypto.json`
+  console.log(`Start watching for ${options.input}`);
+  watcher = chokidar.watch(`${options.input}/**/*.*`, {
+    //ignored: [`**/*.lock`]
   });
   watcher
     .on('all', (event, path) => console.log(`${event}\t${path}`))
@@ -241,9 +252,11 @@ connectionMessageSubject
   .subscribe(watch => {
     if (watch) {
       console.log(`Start watching...`);
+      options.watch = true;
       startWatching();
     } else {
       console.log(`Stop watching...`);
+      options.watch = false;
       stopWatching();
     }
   });
@@ -279,7 +292,7 @@ connectionMessageSubject
         options.output = destinationPath;
       },
       err => {
-        console.log(`Folder will be created`);
+        console.log(`Folder ${destinationPath} will be created`);
         reset();
         options.output = destinationPath;
       }
@@ -289,21 +302,10 @@ connectionMessageSubject
 connectionMessageSubject
   .map((guiSettings: GuiSettings) => guiSettings.isEncryption)
   .distinctUntilChanged()
-  .filter(isEncryption => {
-    if (!isEncryption) {
-      return options.func == electionCipher.encrypt;
-    } else {
-      return options.func == electionCipher.decrypt;
-    }
-  })
   .subscribe(isEncryption => {
     console.log(`Setting ${isEncryption ? 'encryption' : 'decryption'}...`);
-    reset();
-    if (isEncryption) {
-      options.func = electionCipher.encrypt;
-    } else {
-      options.func = electionCipher.decrypt;
-    }
+    //reset();
+    options.isDecryption = !isEncryption;
   });
 
 connectionMessageSubject
@@ -335,6 +337,8 @@ function reset() {
   console.log(`Cleaning state...`)
   state = [];
   fs.writeFileSync('crypto-log.json', JSON.stringify(state));
-  stopWatching();
-  startWatching();
+  if (options.watch) {
+    stopWatching();
+    startWatching();
+  }
 }

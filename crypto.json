@@ -1,4 +1,8 @@
 {
+  "rc4": {
+    "key": "00010110",
+    "numberOfBits": 4
+  },
   "election-1876-cipher": {
     "permutation": [1, 0, 2],
     "prefixes": [

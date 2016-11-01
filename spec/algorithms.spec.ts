@@ -5,6 +5,8 @@ import codebookCypher = require('../algorithms/codebook-cypher');
 import doubleTransposition = require('../algorithms/double-transposition');
 import electionCipher = require('../algorithms/election-cipher');
 
+import rc4 = require('../algorithms/rc4');
+
 import util = require('../util/util');
 
 describe(`Util`, () => {
@@ -398,5 +400,42 @@ describe(`Algorithm`, () => {
 
   xdescribe(`A5/1`, () => {
 
+  });
+
+  describe(`RC4`, () => {
+    describe(`KSA (Key-Scheduling Algorithm)`, () => {
+      it(`should generate key #1`, () => {
+        expect(rc4.generateKey(3, `111010000100`))
+          .toEqual([6, 2, 5, 4, 0, 3, 1, 7]);
+      });
+      it(`should generate key #2`, () => {
+        expect(rc4.generateKey(4, `00010110`))
+          .toEqual([0, 7, 10, 5, 12, 4, 14, 13, 3, 8, 11, 15, 9, 6, 2, 1]);
+      });
+    });
+    describe(`Split Buffer`, () => {
+      it(`should split buffer`, () => {
+        expect(rc4.splitBuffer(Buffer.from([0x7A]), 3)).toEqual([3, 6, 4]);
+      });
+    });
+    describe(`PRGA`, () => {
+      it(`should generate addend`, () => {
+        expect(rc4.getAddend(
+          Buffer.from([0xAB, 0x42]),
+          [0, 7, 10, 5, 12, 4, 14, 13, 3, 8, 11, 15, 9, 6, 2, 1])
+        )
+          .toEqual([12, 7, 14, 8]);
+      });
+      it(`should encrypt`, () => {
+        expect(rc4.encrypt(Buffer.from([0xAB, 0x42]), 4, '00010110'))
+          .toEqual([6, 12, 10, 10]);
+      });
+    });
+    describe(`Get buffer`, () => {
+      it(`should get buffer`, () => {
+        expect(rc4.getBuffer([0x6, 0xC, 0xA, 0xA]))
+          .toEqual(Buffer.from([0x6C, 0xAA]));
+      });
+    });
   });
 });
