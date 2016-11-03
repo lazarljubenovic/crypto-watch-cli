@@ -28,8 +28,9 @@ function splitBuffer(buffer: Buffer, chunkSize: number): number[] {
     .map(hex => Number.parseInt(`0x${hex}`).toString(2))
     .map(binaryString => _.padStart(binaryString, 4, '0'))
     .map(binaryString => binaryString.split(''))
-    .reduce((acc, curr) => acc.concat(curr))
+    .reduce((acc, curr) => acc.concat(curr), [])
   let chunkedBinaryArray: string[][] = _.chunk(arrayOfOnesAndZeroes, chunkSize);
+  //console.log('chunked array', JSON.stringify(chunkedBinaryArray));
   chunkedBinaryArray[chunkedBinaryArray.length - 1] =
     _.padEnd(
       chunkedBinaryArray[chunkedBinaryArray.length - 1].join(''),
@@ -54,18 +55,18 @@ function getAddend(plaintext: Buffer, S: number[]) {
 }
 
 function encrypt(plaintext: Buffer, n: number, keyBinaryString: string) {
-  console.log(`Generating key...`);
+  // console.log(`Generating key...`);
   const S = generateKey(n, keyBinaryString);
-  console.log(`Key generated: `, S);
-  console.log(`Spliting buffer...`);
+  // console.log(`Key generated: `, S);
+  // console.log(`Spliting buffer...`);
   const xor1 = splitBuffer(plaintext, n);
-  console.log(`Buffer split: `, xor1);
-  console.log(`Generating addend...`);
+  // console.log(`Buffer split: `, xor1);
+  // console.log(`Generating addend...`);
   const xor2 = getAddend(plaintext, S);
-  console.log(`Addend generated: `, xor2);
-  console.log(`XOR'ing...`);
+  // console.log(`Addend generated: `, xor2);
+  // console.log(`XOR'ing...`);
   const result = xor1.map((n, i) => n ^ xor2[i]);
-  console.log(`XOR'ed: `, result);
+  // console.log(`XOR'ed: `, result);
   return result;
 }
 

@@ -6,6 +6,7 @@ import doubleTransposition = require('../algorithms/double-transposition');
 import electionCipher = require('../algorithms/election-cipher');
 
 import rc4 = require('../algorithms/rc4');
+import tea = require('../algorithms/tea');
 
 import util = require('../util/util');
 
@@ -155,8 +156,9 @@ describe(`Util`, () => {
     it(`should split carefully given a single prefix`, () => {
       expect(util.splitCarefully('a los b los c los d', new Set(['los'])))
         .toEqual(['a', 'los b', 'los c', 'los d']);
-      expect(util.splitCarefully('a b c los b los c los d', new Set(['los'])))
-        .toEqual(['a', 'b', 'c', 'los b', 'los c', 'los d']);
+      expect(util.splitCarefully('a b c los b los c los d',
+        new Set(['los'])))
+          .toEqual(['a', 'b', 'c', 'los b', 'los c', 'los d']);
     });
     it(`should split carefully with multiple prefixes`, () => {
       expect(
@@ -302,7 +304,7 @@ describe(`Algorithm`, () => {
         {col: 3, columnFirst: false, per1: [1, 0], per2: [2, 1, 0]}
       )).toBe('badcba');
     });
-    it(`should work a more complex example when size is not perfect`, () => {
+    it(`should work a more complex example when size isn't perfect`, () => {
       expect(doubleTransposition(
         'attackatdawn',
         {col: 5, columnFirst: true, per1: [1, 3, 4, 0, 2], per2: [0, 2, 1]}
@@ -338,8 +340,9 @@ describe(`Algorithm`, () => {
           .toBe(`welcome Hey, San Francisco! to`);
       });
       it(`should work with multiple prefixes`, () => {
-        expect(electionCipher.encrypt(`a B c D`, [1, 0], new Set(['a', 'c'])))
-          .toBe(`c D a B`);
+        expect(electionCipher
+          .encrypt(`a B c D`, [1, 0], new Set(['a', 'c'])))
+            .toBe(`c D a B`);
       });
       it(`should work with multiple prefixes and added padding`, () => {
         expect(electionCipher.encrypt(
@@ -435,6 +438,56 @@ describe(`Algorithm`, () => {
       it(`should get buffer`, () => {
         expect(rc4.getBuffer([0x6, 0xC, 0xA, 0xA]))
           .toEqual(Buffer.from([0x6C, 0xAA]));
+      });
+    });
+  });
+
+  describe(`TEA`, () => {
+    describe(`Normalize Buffer`, () => {
+      it(`should add padding to buffer when needed`, () => {
+        const weirdBuffer = Buffer.from([0xAB]);
+        const coolBuffer = Buffer.from([0xAB, 0x00]);
+        expect(tea.rightPadBuffer(weirdBuffer, 2).equals(coolBuffer))
+          .toBe(true);
+      });
+      it(`should do nothing when buffer is already alright`, () => {
+        const buffer = Buffer.from([0xAB, 0x00]);
+        expect(tea.rightPadBuffer(buffer, 2).equals(buffer)).toBe(true);
+      });
+      it(`should work for paranoid test cases`, () => {
+        const weirdBuffer = Buffer.from([0x11, 0x22, 0x33, 0x44, 0x55]);
+        const coolBuffer =
+          Buffer.from([0x11, 0x22, 0x33, 0x44, 0x55, 0x00, 0x00, 0x00]);
+        expect(tea.rightPadBuffer(weirdBuffer, 4).equals(coolBuffer))
+          .toBe(true);
+      });
+    });
+    describe(`encryptBlock`, () => {
+      it(`should encrypt`, () => {
+        const plaintext = Buffer.from([0x12, 0x34, 0xAB, 0xCD]);
+        const key =
+          Buffer.from([0x0A, 0x0B, 0xF4, 0xF2, 0xFA, 0xFB, 0x04, 0x02]);
+        const ciphertext = Buffer.from([0x7E, 0x7C, 0xBB, 0x0B]);
+        expect(Array.from(tea.encryptBlock(plaintext, key)))
+          .toEqual(Array.from(ciphertext));
+      });
+      it(`should decrypt`, () => {
+        const plaintext = Buffer.from([0x12, 0x34, 0xAB, 0xCD]);
+        const key =
+          Buffer.from([0x0A, 0x0B, 0xF4, 0xF2, 0xFA, 0xFB, 0x04, 0x02]);
+        const ciphertext = Buffer.from([0x7E, 0x7C, 0xBB, 0x0B]);
+        expect(Array.from(tea.decryptBlock(ciphertext, key)))
+          .toEqual(Array.from(plaintext));
+      });
+    });
+    describe(`Encryption and Decryption`, () => {
+      it(`should pass a random test`, () => {
+        const random = (min = 0, max = 0x100) =>
+          Math.floor((Math.random() * (max - min)) + min);
+        const M = Buffer.from(Array(12).fill(0).map(_ => random()));
+        const k = Buffer.from(Array(8).fill(0).map(_ => random()));
+        const C = tea.encrypt(M, k);
+        expect(tea.decrypt(C, k).equals(M)).toBe(true);
       });
     });
   });
