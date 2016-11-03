@@ -462,7 +462,7 @@ describe(`Algorithm`, () => {
           .toBe(true);
       });
     });
-    describe(`encryptBlock`, () => {
+    describe(`Encrypt Block`, () => {
       it(`should encrypt`, () => {
         const plaintext = Buffer.from([0x12, 0x34, 0xAB, 0xCD]);
         const key =
@@ -481,13 +481,22 @@ describe(`Algorithm`, () => {
       });
     });
     describe(`Encryption and Decryption`, () => {
-      it(`should pass a random test`, () => {
-        const random = (min = 0, max = 0x100) =>
-          Math.floor((Math.random() * (max - min)) + min);
-        const M = Buffer.from(Array(12).fill(0).map(_ => random()));
-        const k = Buffer.from(Array(8).fill(0).map(_ => random()));
-        const C = tea.encrypt(M, k);
-        expect(tea.decrypt(C, k).equals(M)).toBe(true);
+      const random = (min = 0, max = 0x100) =>
+        Math.floor((Math.random() * (max - min)) + min);
+      const M = Buffer.from(Array(24).fill(0).map(_ => random()));
+      const k = Buffer.from(Array(8).fill(0).map(_ => random()));
+      const iv = Buffer.from(Array(4).fill(0).map(_ => random()));
+      describe(`ECB mode`, () => {
+        it(`should pass a random test`, () => {
+          const C = tea.encrypt(M, k, null, 'ecb');
+          expect(tea.decrypt(C, k, null, 'ecb').equals(M)).toBe(true);
+        });
+      });
+      describe(`CFB mode`, () => {
+        it(`should pass a random test`, () => {
+          const C = tea.encrypt(M, k, iv, 'cfb');
+          expect(tea.decrypt(C, k, iv, 'cfb').equals(M)).toBe(true);
+        });
       });
     });
   });

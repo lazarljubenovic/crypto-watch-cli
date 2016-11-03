@@ -77,23 +77,71 @@ function chunkBmp(bmp: Buffer): [Buffer, Buffer] {
   return [headers, imageData];
 }
 
+function BufferXOR(a: Buffer, b: Buffer): Buffer {
+  return Buffer.from([a, b].map(x => Array.from(x))
+    .reduce((a, b) => b.map((el, i) => el ^ a[i]), []));
+}
+
+const print = (b: Buffer) =>
+  Array.from(b)
+    .map(x => x.toString(16))
+    .map(x => _.padStart(x, 2, '0'))
+    .join(' ');
+
 function _encryptDecrypt(encrypt: boolean,
                          buffer: Buffer,
                          key: Buffer,
+                         iv: Buffer,
+                         mode: string,
                          bmp: boolean): Buffer {
+  const log = false;
   let result: Buffer = Buffer.alloc(0);
   if (bmp) {
     var chunks = chunkBmp(buffer);
     var bmpHeaders = chunks[0];
     buffer = chunks[1];
   }
+  let prevIv: Buffer = iv;
   for (let i = 0; i < buffer.length; i += 4) {
     const block = buffer.slice(i, i + 4);
-    const newResultBlock = encrypt ?
-      encryptBlock(block, key) :
-      decryptBlock(block, key);
-    result = Buffer.concat([result, newResultBlock]);
-  }
+    log && console.log();
+    log && console.log(`Chunk ${i}`)
+    log && console.log(`Block  = ${print(block)}`);
+    log && console.log(`IV     = ${prevIv && print(prevIv)}`);
+    let encryptionParam1: Buffer;
+    let encryptionParam2: Buffer;
+    switch (mode) {
+    case 'ecb':
+      encryptionParam1 = block;
+      encryptionParam2 = key;
+      break;
+    case 'cfb':
+      encryptionParam1 = prevIv;
+      encryptionParam2 = key;
+      break;
+    }
+    const newResultBlock = encrypt || mode == 'cfb' ?
+      encryptBlock(encryptionParam1, encryptionParam2) :
+      decryptBlock(encryptionParam1, encryptionParam2);
+    log && console.log(`Result = ${print(newResultBlock)}`);
+    switch (mode) {
+      case 'ecb':
+        result = Buffer.concat([result, newResultBlock]);
+        break;
+      case 'cfb':
+        const xor = BufferXOR(newResultBlock, block);
+        log && console.log(`XOR    = ${print(xor)}`);
+        if (encrypt) {
+          prevIv = xor;
+        } else {
+          prevIv = block;
+        }
+        result = Buffer.concat([result, xor]);
+        break;
+    }
+    log && console.log(`Full   = ${print(result)}`);
+    log && console.log(`-------`);
+  } // for loop end
   if (bmp) {
     return Buffer.concat([bmpHeaders, result]);
   } else {
@@ -101,12 +149,20 @@ function _encryptDecrypt(encrypt: boolean,
   }
 }
 
-function encrypt(buffer: Buffer, key: Buffer, bmp: boolean = false): Buffer {
-  return _encryptDecrypt(true, buffer, key, bmp);
+function encrypt(buffer: Buffer,
+                 key: Buffer,
+                 iv: Buffer,
+                 mode: string = 'ecb',
+                 bmp: boolean = false): Buffer {
+  return _encryptDecrypt(true, buffer, key, iv, mode, bmp);
 }
 
-function decrypt(buffer: Buffer, key: Buffer, bmp: boolean = false): Buffer {
-  return _encryptDecrypt(false, buffer, key, bmp);
+function decrypt(buffer: Buffer,
+                 key: Buffer,
+                 iv: Buffer,
+                 mode: string = 'ecb',
+                 bmp: boolean = false): Buffer {
+  return _encryptDecrypt(false, buffer, key, iv, mode, bmp);
 }
 
 export = {
@@ -116,4 +172,5 @@ export = {
   chunkBmp,
   encryptBlock,
   decryptBlock,
+  BufferXOR,
 }

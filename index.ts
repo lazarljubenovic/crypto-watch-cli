@@ -16,6 +16,7 @@ import codebookCypher = require('./algorithms/codebook-cypher');
 import doubleTransposition = require('./algorithms/double-transposition');
 import electionCipher = require('./algorithms/election-cipher');
 import rc4 = require('./algorithms/rc4');
+import tea = require('./algorithms/tea');
 
 interface Options {
   watch: boolean;
@@ -24,12 +25,10 @@ interface Options {
   optionsPath: string;
   func: Function;
   isDecryption: boolean;
-  permutationFromGui: number[];
   isOptionsFromFile: boolean;
-  // permutation: number[];
-  // prefixes: string[];
-  key: string;
-  numberOfBits: number;
+  key: Buffer;
+  iv: Buffer;
+  mode: string;
 }
 
 interface GuiSettings {
@@ -38,30 +37,22 @@ interface GuiSettings {
   destinationPath: string;
   isEncryption: boolean;
   isOptionsFromFile: boolean;
-  permutationFromGui: number[];
 }
 
-// Defaults (program-wise)
 const defaults = {
   watch: false,
   input: 'input',
   output: 'output',
   optionsPath: 'crypto.json',
-  func: rc4.encrypt,
+  func: tea.encrypt,
   isDecryption: false,
-  permutationFromGui: [1, 0],
   isOptionsFromFile: true,
 }
 
-// Algorithm defaults
-// const electionDefaults = {
-//   permutation: [1, 0],
-//   prefixes: ['san', 'los', 'las', 'de', 'saint', 'st'],
-// };
-
-const rc4Defaults = {
-  key: '00010110',
-  numberOfBits: 4,
+const algorithmDefaults = {
+  key: fs.readFileSync('tea-key'),
+  iv: fs.readFileSync('tea-iv'),
+  mode: 'cfb',
 }
 
 // region Read crypto.json file to set global options
@@ -71,13 +62,13 @@ try {
   options =
     JSON.parse(fs.readFileSync(defaults.optionsPath, {
       encoding: 'utf8'}
-    ))['rc4'];
+    ))['tea'];
   console.log(`crypto.json file found, using its settings.`);
-  options = Object.assign({}, options, defaults);
+  options = Object.assign({}, defaults, algorithmDefaults, options);
 } catch (e) {
   console.error(`File ${defaults.optionsPath} not found, using defaults.`);
   console.error(e);
-  options = Object.assign({}, defaults, rc4Defaults);
+  options = Object.assign({}, defaults, algorithmDefaults);
 }
 
 console.log(`Settings loaded.`);
@@ -128,20 +119,25 @@ function encrypt(filename: string): void {
       // File should be encrypted
       fs.readFile(filename, (err, plaintext: Buffer) => {
         if (err) throw err;
+        console.log(`Starting process...`, Date());
         const outputPath = getCorrespondingOutputFilePath(filename);
-        const cyphertext: Buffer =
-          rc4.getBuffer(rc4.encrypt(
-            plaintext,
-            options.numberOfBits,
-            options.key
-          ));
+        let cyphertext: Buffer;
+        const isBmp = filename.endsWith('.bmp') ||
+                      filename.endsWith('.bmp.lock');
+        if (options.isDecryption) {
+          cyphertext = tea.encrypt(
+            plaintext, options.key, options.iv, options.mode, isBmp);
+        } else {
+          cyphertext = tea.decrypt(
+            plaintext, options.key, options.iv, options.mode, isBmp);
+        }
         mkdirp(path.dirname(outputPath), err => {
           if (err) throw err;
           fs.writeFile(outputPath, cyphertext, err => {
             if (err) throw err;
-            console.log(`Encryption successful!`);
+            console.log(`Encryption successful!`, Date());
             console.log(`\t${filename} => ${outputPath}`);
-            console.log(`\t${plaintext} => ${cyphertext}`);
+            //console.log(`\t${plaintext} => ${cyphertext}`);
             if (!stateEntry) {
               state = state.concat({
                 path: filename,
@@ -316,20 +312,6 @@ connectionMessageSubject
     console.log(`Options from file: ${isOptionsFromFile ? 'ON' : 'OFF'}.`);
     reset();
     options.isOptionsFromFile = isOptionsFromFile;
-  });
-
-connectionMessageSubject
-  .map((guiSettings: GuiSettings) => guiSettings.permutationFromGui)
-  .distinctUntilChanged((prev, curr) => {
-    return curr.length == prev.length && curr.every((el, i) => el === prev[i]);
-  })
-  .filter(permutationFromGui => {
-    return !options.isOptionsFromFile;
-  })
-  .subscribe(permutationFromGui => {
-    console.log(`Setting GUI permutation to ${permutationFromGui.join('-')}`);
-    reset();
-    options.permutationFromGui = permutationFromGui;
   });
 
 function reset() {
