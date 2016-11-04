@@ -17,18 +17,24 @@ import doubleTransposition = require('./algorithms/double-transposition');
 import electionCipher = require('./algorithms/election-cipher');
 import rc4 = require('./algorithms/rc4');
 import tea = require('./algorithms/tea');
+import knapsack = require('./algorithms/knapsack');
 
 interface Options {
   watch: boolean;
   input: string;
   output: string;
   optionsPath: string;
-  func: Function;
+  funcE: Function;
+  funcD: Function;
   isDecryption: boolean;
   isOptionsFromFile: boolean;
-  key: Buffer;
-  iv: Buffer;
-  mode: string;
+  // key: Buffer;
+  // iv: Buffer;
+  // mode: string;
+  bytes: number;
+  P: number[];
+  M: number;
+  N: number;
 }
 
 interface GuiSettings {
@@ -40,19 +46,24 @@ interface GuiSettings {
 }
 
 const defaults = {
-  watch: false,
+  watch: true,
   input: 'input',
   output: 'output',
   optionsPath: 'crypto.json',
-  func: tea.encrypt,
+  funcE: knapsack.encrypt,
+  funcD: knapsack.decrypt,
   isDecryption: false,
   isOptionsFromFile: true,
 }
 
 const algorithmDefaults = {
-  key: fs.readFileSync('tea-key'),
-  iv: fs.readFileSync('tea-iv'),
-  mode: 'cfb',
+  // key: fs.readFileSync('tea-key'),
+  // iv: fs.readFileSync('tea-iv'),
+  // mode: 'ecb',
+  bytes: 1,
+  P: [2, 3, 7, 14, 30, 57, 120, 251],
+  M: 41,
+  N: 491,
 }
 
 // region Read crypto.json file to set global options
@@ -62,7 +73,7 @@ try {
   options =
     JSON.parse(fs.readFileSync(defaults.optionsPath, {
       encoding: 'utf8'}
-    ))['tea'];
+    ))['knapsack'];
   console.log(`crypto.json file found, using its settings.`);
   options = Object.assign({}, defaults, algorithmDefaults, options);
 } catch (e) {
@@ -124,12 +135,17 @@ function encrypt(filename: string): void {
         let cyphertext: Buffer;
         const isBmp = filename.endsWith('.bmp') ||
                       filename.endsWith('.bmp.lock');
-        if (options.isDecryption) {
-          cyphertext = tea.encrypt(
-            plaintext, options.key, options.iv, options.mode, isBmp);
+        if (!options.isDecryption) {
+          cyphertext = options.funcE(
+            plaintext, options.bytes, options.P, options.M, options.N
+          ).join(' ');
         } else {
-          cyphertext = tea.decrypt(
-            plaintext, options.key, options.iv, options.mode, isBmp);
+          cyphertext = options.funcD(
+            plaintext.toString().split(' ').map(Number),
+            options.P,
+            knapsack.getPrivateKey(options.P, options.M, options.N).IM,
+            options.N
+          );
         }
         mkdirp(path.dirname(outputPath), err => {
           if (err) throw err;
@@ -324,3 +340,5 @@ function reset() {
     startWatching();
   }
 }
+
+reset()
