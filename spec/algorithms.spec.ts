@@ -7,6 +7,7 @@ import electionCipher = require('../algorithms/election-cipher');
 
 import rc4 = require('../algorithms/rc4');
 import tea = require('../algorithms/tea');
+import knapsack = require('../algorithms/knapsack');
 
 import util = require('../util/util');
 
@@ -497,6 +498,114 @@ describe(`Algorithm`, () => {
           const C = tea.encrypt(M, k, iv, 'cfb');
           expect(tea.decrypt(C, k, iv, 'cfb').equals(M)).toBe(true);
         });
+      });
+    });
+  });
+
+  describe(`Knapsack`, () => {
+    describe(`Is array superincreasing?`, () => {
+      it(`should work for empty array`, () => {
+        expect(knapsack.isSuperincreasing([])).toBe(false);
+      });
+      it(`should work for one-element array`, () => {
+        expect(knapsack.isSuperincreasing([0])).toBe(true);
+      });
+      it(`should return true when array is superincreasing`, () => {
+        expect(knapsack.isSuperincreasing([1, 2, 4, 8, 16, 32])).toBe(true);
+      });
+      it(`should return false when array is not superincreasing`, () => {
+        expect(knapsack.isSuperincreasing([1, 2, 3, 4])).toBe(false);
+      });
+      it(`should return false when array is almost superincreasing`, () => {
+        expect(knapsack.isSuperincreasing([1, 2, 4, 7, 15, 31])).toBe(false);
+      });
+    });
+    describe(`Public Key`, () => {
+      it(`should get public key when valid`, () => {
+        expect(knapsack.getPublicKey([1, 2, 4, 8], 7, 17))
+          .toEqual([7, 14, 11, 5]);
+      });
+      it(`should throw when array is invalid`, () => {
+        expect(() => knapsack.getPublicKey([1, 2, 3], 10, 10)).toThrow();
+      });
+      it(`should throw when N is not successor`, () => {
+        expect(() => knapsack.getPublicKey([1, 3, 19], 10, 10)).toThrow();
+      });
+      it(`should prove my homework`, () => {
+        expect(knapsack.getPublicKey([2, 6, 9, 21, 46, 99], 39, 194))
+          .toEqual([78, 40, 157, 43, 48, 175]);
+      });
+    });
+    describe(`Private Key`, () => {
+      it(`should get private key`, () => {
+        expect(knapsack.getPrivateKey([1, 2, 4, 8], 17, 7))
+          .toEqual({P: [1, 2, 4, 8], IM: 5, N: 7});
+      });
+      it(`should prove my homework`, () => {
+        expect(knapsack.getPrivateKey([2, 6, 9, 21, 46, 99], 39, 194))
+          .toEqual({P: [2, 6, 9, 21, 46, 99], IM: 5, N: 194});
+      });
+    });
+    describe(`Encrypt Block`, () => {
+      it(`should work`, () => {
+        expect(knapsack.encryptBlock(
+          150, [2, 3, 7, 14, 30, 57, 120, 251], 41, 491
+        )).toEqual(548);
+        expect(knapsack.encryptBlock(
+          0xF2, [2, 3, 7, 14, 30, 57, 120, 251], 41, 491
+        )).toEqual(585);
+      });
+      it(`should throw when plaintext is too large`, () => {
+        expect(() => knapsack.encryptBlock(
+          0x1FF, [2, 3, 7, 14, 30, 57, 120, 251], 41, 491
+        )).toThrow(new Error(`Too big data! 8 < 9`));
+      });
+      it(`should not when plaintext is smaller than array`, () => {
+        expect(() => knapsack.encryptBlock(
+          0x01, [2, 3, 7, 14, 30, 57, 120, 251], 41, 491
+        )).not.toThrow();
+      });
+      it(`should prove my homework`, () => {
+        expect(knapsack.encryptBlock(49, [2, 6, 9, 21, 46, 99], 39, 194))
+          .toBe(293);
+      });
+    });
+    describe(`Decrypt Block`, () => {
+      it(`should work`, () => {
+        expect(knapsack.decryptBlock(
+          548, [2, 3, 7, 14, 30, 57, 120, 251], 12, 491
+        )).toBe(150);
+      });
+      it(`should prove my homework`, () => {
+        expect(knapsack.decryptBlock(
+          275, [2, 6, 9, 21, 46, 99], 5, 194
+        )).toBe(56);
+      });
+      it(`should throw when impossible and thus prove my homework`, () => {
+        expect(() => knapsack.decryptBlock(
+          276, [2, 6, 9, 21, 46, 99], 5, 194
+        )).toThrow(new Error(`TC was leftover (1). Impossible to decrypt.`));
+      });
+    });
+    describe(`Encrypt`, () => {
+      it(`should work`, () => {
+        expect(knapsack.encrypt(
+          Buffer.from([0x96, 0xF2]),
+          1,
+          [2, 3, 7, 14, 30, 57, 120, 251],
+          41,
+          491
+        )).toEqual([548, 585])
+      });
+    });
+    describe(`Decrypt`, () => {
+      it(`should work`, () => {
+        expect(knapsack.decrypt(
+          [548, 585],
+          [2, 3, 7, 14, 30, 57, 120, 251],
+          12,
+          491
+        ).equals(Buffer.from([0x96, 0xF2]))).toBe(true);
       });
     });
   });
